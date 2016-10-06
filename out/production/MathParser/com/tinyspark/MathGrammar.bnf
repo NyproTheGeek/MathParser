@@ -1,0 +1,26 @@
+// precedence of math operations go in this order:
+// ---- parentheses
+// ---- exponents and roots
+// ---- divisions and multiplications
+// ---- addition and subtraction
+
+// Some Keywords
+// :sq -> square root
+// :cu -> cube root
+// :rt -> root
+
+// Examples of the math syntax
+// x = 4 * 3 + 2 - 6 / (sq: 2 ^ 2)
+// y = 2:rt{2, 2x}
+// z = -y + 10
+
+// Philosophy
+// All numbers are represented as Double precision FP
+
+var ::=
+letter ::= '_'
+digit ::= '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+
+// Alphabets
+// abcdefghijklmnopqrstuvwxyz
+// ABCDEFGHIJKLMNOPQRSTUVWXYZ

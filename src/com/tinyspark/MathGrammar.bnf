@@ -1,0 +1,46 @@
+// precedence of math operations go in this order:
+// ---- parentheses
+// ---- exponents and roots
+// ---- divisions and multiplications
+// ---- addition and subtraction
+
+// Some Keywords
+// :sq -> square root
+// :cu -> cube root
+// :rt -> root
+
+// Examples of the math syntax
+// x = 4 * 3 + 2 - 6 / (sq: 2 ^ 2)
+// y = 2:rt{2, 2x}
+// z = -y + 10
+
+// Philosophy
+// All numbers are represented as Double precision FP
+
+id ::= word | num
+b_expr ::= '(' b_expr0 ')' | id
+b_expr0 ::= eq_expr | b_expr
+// LEFT RECURSION ALERT // LEFT ASSOCIATIVITY MUST BE MAINTAINED
+ex_expr ::= ex_expr '^' b_expr | b_expr
+m_expr ::= m_expr '*' ex_expr | ex_expr
+a_expr ::= a_expr '+' m_expr | m_expr
+eq_expr ::= eq_expr '=' a_expr | a_expr
+
+
+param ::= '{' args '}'
+args ::= expr args0
+args0 ::= ',' args | 0
+
+
+word ::= letter word0
+word0 ::= word | 0
+letter ::= '_' | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
+
+
+num ::= digit num0
+num0 ::= num | 0
+digit ::= '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+
+// Alphabets
+// abcdefghijklmnopqrstuvwxyz
+// ABCDEFGHIJKLMNOPQRSTUVWXYZ
