@@ -1,0 +1,302 @@
+# 07/10/16 Pluto0.0.83
+# MathScanner (and maybe MathParser) shouldn't have been classes, but I did it for simplicity
+module MathParser
+
+# SCANNING
+enum TokenType: Identfier, Number, Operator, Punctuator, NewLine, Others
+type Token (str =: Str, kind =: TokenType)
+
+let priv input =: Str
+mut priv charIndex =: 0
+
+func priv getChar():
+    if charIndex++ < input.length:
+        input[charIndex]
+    else: Str.nil
+..
+
+# remember tokens are the least meaningful things that make up complex structures
+func scan(input =: Str):
+    mut tokens =: let Token[]
+    glo.input = input
+    inputLen = glo.input.length
+    let operators = Str ['=', '-', '+', '*', '/', '^']
+    let punctuators = Str [':', '{', '}', '(', ')', ',']
+    mut char =: Str
+    loop: # if the nil is returned which means end of input, loop and function are exited
+        char = getChar()~
+        # Whitespace
+        while char == ' ':
+            char = getChar()~break
+        # Identifier
+        if isAlpha(char) | char == '_':
+            mut idenStr =: char
+            while isAlNum(char) | char == '_':
+                idenStr += char
+                char =: getChar()~break
+            ..
+            tokens += Token(idenStr, Identifier)
+        ..
+        # Number
+        mut numStr =: Str
+        while isDigit(char):
+            numStr += char
+            char =: getChar()~break
+        ..
+        if !numStr.empty(): tokens += Token(numStr, Number)
+        # Operator
+        if char in operators:
+            tokens += Token(idenStr, Operator)
+        # Punctuator
+        if char in punctuators:
+            tokens += Token(idenStr, Punctuator)
+        # NewLine
+        if char == '\n':
+            tokens += Token(char, NewLine)
+        else if char == '\r':
+            mut nl = char
+            char = getChar()~
+            if char~ ==> char == '\n': tokens += Token(nl + char, NewLine)
+            char = nl
+        ..
+        # Nil
+        # if nil then there is no more content
+        if !char~: break
+        # Other Symbols
+        token += Token(char, Others)
+    ..
+    tokens
+..
+
+
+# PARSING
+type ExprAST
+type BinExprAST[ExprAST]:
+    let operator =: String
+    let lhs =: ExprAST
+    let rhs =: ExprAST
+    func (operator, lhs, rhs)
+..
+type FuncCallExprAST[ExprAST]:
+    let callee =: IdenExprAST
+    let args =: ExprAST[]
+    func (callee, args)
+..
+type NumExprAST[ExprAST]:
+    let value =: F64
+    func (value)
+..
+type IdenExprAST[ExprAST]:
+    let name =: Str
+    func (name)
+..
+type SyntaxError((errorMsg =: Str))[Error]
+type NewlineBounce((errorMsg =: Str))[Bounce]
+
+let priv tokens =: Token[]
+mut priv tokenIndex =: 0
+mut priv curToken =: Token
+let priv funcNames =: ['sq', 'cu', 'rt']
+let priv binOpPrecedence =: [
+    "=", 10 |
+    '+', 20 |
+    '-', 20 |
+    '*', 30 |
+    '/', 30 |
+    '^', 40
+]
+
+func parse(tokens =: Token[]):
+    glo.tokens =: tokens
+    getToken()
+    if !curToken~: raise SyntaxError("Nothing to parse!")
+    let exprAST =: parseExpr(false)
+    rt let asts =: exprAST
+..
+
+func priv getToken():
+    if tokenIndex++ < tokens.length:
+        curToken = tokens[tokenIndex]
+    else: curToken = Token.nil
+..
+
+# GRAMMAR
+# idenExpr ::= iden rhs
+# numExpr ::= num rhs
+# parensExpr ::= '(' expr ')' rhs
+# rhs ::= op expr | ϵ
+# expr ::= idenExpr | numExpr | parensExpr | funcExpr
+# funcName := 'sq' | 'cu' | 'rt'
+# funcCallExpr ::= ':' funcName params
+# params ::= '{' expr args '}' | ϵ
+# args ::= ',' expr | args | ϵ
+# a
+# a + ...
+# 1
+# 1 + ...
+# ( ... )
+# :func{1, a}
+# :func{24} + ...
+# \n
+# EXAMPLE AST STRUCTURE
+# a + 1 - 2
+# binAST -> op idenAST exprAST (-> binAST (-> op numAST numAST ) )
+func priv parsePrimary(mid =: Bool)ExprAST:
+    # idenExpr ::= iden rhs
+    # numExpr ::= num rhs
+    # parensExpr ::= '(' expr ')' rhs
+    # rhs ::= op expr | ϵ
+    # expr ::= idenExpr | numExpr | parensExpr | funcExpr
+    let exprAST =: ExprAST
+    match (curToken.kind):
+        case Identfier: exprAST = parseIdenExpr()
+        case Number: exprAST = parseNumExpr()
+        case Punctuation:
+            if curToken.str == '(': exprAST = parseParensExpr()
+            if curToken.str == ':': exprAST = parseFuncCallExpr()
+        case NewLine:
+            if mid == true: raise SyntaxError("Expected an expression!") # if mid expression
+            else: raise NewlineBounce() # if start of line
+        case Others:
+            raise SyntaxError("Expected an expression!")
+        ..
+    ..
+    rt exprAST
+..
+
+func priv parseExpr():
+    let lhs =: parsePrimary()
+    rt let exprAST =: parseBinExpr(0, lhs)
+..
+
+func priv parseIdenExpr()ExprAST:
+    # idenExpr ::= iden rhs
+    # rhs ::= op expr | ϵ
+    # a
+    # a + ...
+    let idenExprAST =: IdenExprAST(curToken.str)
+    getToken() # eat iden
+    rt idenExprAST
+    #=
+    if !.curToken~ | .curToken.kind == NewLine: rt idenExprAST # a
+    if .curToken.kind != Operator:
+        raise SyntaxError("Expected a binary operator!")
+    else:
+        let binExprAST = .parseBinExpr(idenExprAST)
+    # if !binExprAST~: err "Error!" # no need for this, because it will fail fast
+    # before it reaches here and with better problem description
+    rt binExprAST # a + ...
+    =#
+..
+
+func priv parseNumExpr():
+    # numExpr ::= num rhs
+    # rhs ::= op expr | ϵ
+    # 1
+    # 1 + ...
+    let numExprAST =: NumExprAST(curToken.str.toDouble())
+    getToken() # eat num
+    rt numExprAST
+    #=
+    if !.curToken~ | .curToken.kind == NewLine: rt numExprAST # 1
+    if .curToken.kind != Operator:
+        raise SyntaxError("Expected a binary operator!")
+    else:
+        let binExprAST = .parseBinExpr(numExprAST)
+    # if !binExprAST~: err "Error!" # no need for this, because it will fail fast
+    # before it reaches here and with better problem description
+    rt binExprAST # 1 + ...
+    =#
+..
+
+func priv parseParensExpr():
+    # parensExpr ::= '(' expr ')' rhs
+    # rhs ::= op expr | ϵ
+    # ( ... )
+    # ( ... ) + ...
+    getToken() # eat '('
+    let exprAST =: parseExpr(true)
+    if curToken.str != ')': raise SyntaxError("Expected a ')'")
+    getToken() # eat ')'
+    rt exprAST
+    #=
+    if !curToken~ | curToken.kind == NewLine: rt exprAST # ( ... )
+    if curToken.kind != Operator:
+        raise SyntaxError("Expected a binary operator!")
+    else:
+        let binExprAST = parseBinExpr(exprAST)
+    rt binExprAST # ( ... ) + ...
+    =#
+..
+
+
+func priv parseFuncCallExpr():
+    # funcName := 'sq' | 'cu' | 'rt'
+    # funcCallExpr ::= ':' funcName params
+    # params ::= '{' expr args '}' | ϵ
+    # args ::= ',' expr | args | ϵ
+    # :func{1, a}
+    # :func{24} + ...
+    getToken() # eat ':'
+    if curToken.str not in funcNames: raise SyntaxError("Expected a function name!")
+    let funcName =: curToken
+    let args =: ExprAST
+    getToken() # eat funcName
+    if curToken.str != '{': raise SyntaxError("Expected a '{'!")
+    getToken() # eat '{'
+    while curToken.str != '}':
+        args += parseExpr()
+        if curToken.str == ',':
+            getToken() # eat ','
+            if !curToken~ | curToken.kind == NewLine | curToken.str == '}': raise SyntaxError("Expected a expression!")
+        ..
+        if !curToken~ | curToken.kind == NewLine: raise SyntaxError("Expected a '}'!")
+    ..
+    getToken() # eat '}'
+    rt let funcCallExprAST =: FuncCallExprAST(funcName, args)
+    #=
+    if !curToken~ | curToken.kind == NewLine: rt funcCallExprAST # :func{ ..., }
+
+    if curToken.kind != Operator:
+        raise SyntaxError("Expected a binary operator!")
+    else:
+        let binExprAST = parseBinExpr(funcCallExprAST)
+    rt binExprAST # :func{ ..., } + ...
+    =#
+..
+
+func priv parseBinExpr(lhs =: ExprAST)BinExprAST: #TODO TODO
+    # rhs ::= op expr | ϵ
+    # + expr
+    let opToken =: curToken.str
+    getToken() # eat operator
+    if !curToken~: raise SyntaxError("Expected an expression!")
+    let rhs =: parseExpr(true)
+..
+
+
+# CODEGEN
+enum OpCode: DLOAD, DSTORE, DADD, DSUB, DMUL, DDIV, DEXP, DROOT, GOTO, DPUSH, DCMPEQ
+
+type ByteCode(opCode =: OpCode, String param)
+
+let asts =: ExprAST[]
+
+func codegen():
+
+
+# ENTRY
+func main():
+    mut asts =: let ExprAST[]
+    loop:
+        [try]
+        print("mathopia >>> ")
+        mut input =: scan() # scans the line
+        asts += parse(scan(input))
+        catch s =: SyntaxError:
+            print(s.errorMsg)
+            next
+        catch n =: NewlineBounce:
+            next
+    ..
+..

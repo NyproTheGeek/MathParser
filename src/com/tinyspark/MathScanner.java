@@ -6,7 +6,7 @@ import java.util.StringTokenizer;
  * Created by Nypro on 05-Oct-16.
  */
 public class MathScanner {
-	public static String[] scan (String input){
+	public static String[] scan (final String input){
 		StringTokenizer strTok = new StringTokenizer(input, " +-=/*^():{}", true);
 		String output[] = new String[strTok.countTokens()];
 		int count = 0;

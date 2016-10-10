@@ -12,13 +12,44 @@
 // Examples of the math syntax
 // x = 4 * 3 + 2 - 6 / (sq: 2 ^ 2)
 // y = 2:rt{2, 2x}
-// z = -y + 10
+// -y + 10 * 5
+// z :cu{8}
 
 // Philosophy
-// All numbers are represented as Double precision FP
+// All numbers are represented as double precision FP
 
-var ::=
-letter ::= '_'
+// Expression
+//id ::= word | num
+//b_expr ::= '(' b_expr0 ')' | id
+//b_expr0 ::= eq_expr | b_expr
+//// LEFT RECURSION ALERT // LEFT ASSOCIATIVITY MUST BE MAINTAINED
+//ex_expr ::= ex_expr '^' b_expr | b_expr
+//m_expr ::= m_expr '*' ex_expr | ex_expr
+//a_expr ::= a_expr '+' m_expr | m_expr
+//eq_expr ::= eq_expr '=' a_expr | a_expr
+
+id ::= word | num
+b_expr ::= '(' b_expr0 ')' | id [TOP]
+b_expr0 ::= expr | b_expr
+expr ::= expr op  b_expr |  [TOP]
+op ::= '+' | '-' | //...
+
+
+// Function
+function ::= ':' 'r' 't' function0 | ':' 's' 'q' function0 | ':' 'c' 'u' function0 [TOP]
+function0 ::= param | 0
+param ::= '{' args '}'
+args ::= expr args0
+args0 ::= ',' args | 0
+
+// Word
+word ::= letter word0
+word0 ::= word | 0
+letter ::= '_' | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
+
+// Number
+num ::= digit num0
+num0 ::= num | 0
 digit ::= '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
 
 // Alphabets
