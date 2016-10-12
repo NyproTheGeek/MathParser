@@ -3,16 +3,16 @@
 module MathParser
 
 # SCANNING
-enum TokenType: Identfier, Number, Operator, Punctuator, NewLine, Others
+enum TokenType: Identfier, Number, Operator, Punctuator, Newline, Others
 type Token (str =: Str, kind =: TokenType)
 
 let priv input =: Str
-mut priv charIndex =: 0
+mut priv charIndex =: Int
 
 func priv getChar():
     if charIndex++ < input.length:
         input[charIndex]
-    else: Str.nil
+    Str.nil
 ..
 
 # remember tokens are the least meaningful things that make up complex structures
@@ -20,8 +20,9 @@ func scan(input =: Str):
     mut tokens =: let Token[]
     glo.input = input
     inputLen = glo.input.length
-    let operators = Str ['=', '-', '+', '*', '/', '^']
-    let punctuators = Str [':', '{', '}', '(', ')', ',']
+    charIndex = 0
+    let operators = '=-+*/^'
+    let punctuators = ':}(),'
     mut char =: Str
     loop: # if the nil is returned which means end of input, loop and function are exited
         char = getChar()~
@@ -52,17 +53,15 @@ func scan(input =: Str):
             tokens += Token(idenStr, Punctuator)
         # NewLine
         if char == '\n':
-            tokens += Token(char, NewLine)
-        else if char == '\r':
-            mut nl = char
-            char = getChar()~
-            if char~ ==> char == '\n': tokens += Token(nl + char, NewLine)
+            tokens += Token(char, Newline)
+        elif char == '\r':
+            char += getChar()~''
+            if char == '\n': tokens += Token('\r\n', Newline)
             char = nl
         ..
         # Nil
-        # if nil then there is no more content
-        if !char~: break
-        # Other Symbols
+        if !char~: break # If nil then there is no more content to scan
+        # Others
         token += Token(char, Others)
     ..
     tokens
@@ -70,7 +69,7 @@ func scan(input =: Str):
 
 
 # PARSING
-type ExprAST
+type ab ExprAST
 type BinExprAST[ExprAST]:
     let operator =: String
     let lhs =: ExprAST
@@ -106,30 +105,42 @@ let priv binOpPrecedence =: [
     '^', 40
 ]
 
-func parse(tokens =: Token[]):
-    glo.tokens =: tokens
-    getToken()
-    if !curToken~: raise SyntaxError("Nothing to parse!")
-    let exprAST =: parseExpr(false)
-    rt let asts =: exprAST
-..
-
 func priv getToken():
     if tokenIndex++ < tokens.length:
         curToken = tokens[tokenIndex]
     else: curToken = Token.nil
 ..
 
+
+func parse(tokens =: Token[]):
+    glo.tokens =: tokens
+    getToken()
+    if !curToken~ | curToken.kind == Newline: raise SyntaxError("Nothing to parse!")
+    let exprAST =: parseExpr(false)
+    rt let asts =: exprAST
+..
+
+#=
+func priv lookAhead()Token:
+    if tokenIndex + 1 < tokens.length:
+        tokens[tokenIndex + 1]
+    else: Token.nil
+..
+=#
+
+
 # GRAMMAR
 # idenExpr ::= iden rhs
 # numExpr ::= num rhs
 # parensExpr ::= '(' expr ')' rhs
 # rhs ::= op expr | ϵ
+# op ::= '=' | '+' | '-' | '*' | '/' | '^'
 # expr ::= idenExpr | numExpr | parensExpr | funcExpr
 # funcName := 'sq' | 'cu' | 'rt'
 # funcCallExpr ::= ':' funcName params
 # params ::= '{' expr args '}' | ϵ
 # args ::= ',' expr | args | ϵ
+# ----------------------------------------
 # a
 # a + ...
 # 1
@@ -164,9 +175,10 @@ func priv parsePrimary(mid =: Bool)ExprAST:
     rt exprAST
 ..
 
-func priv parseExpr():
-    let lhs =: parsePrimary()
-    rt let exprAST =: parseBinExpr(0, lhs)
+func priv parseExpr(mid =: Bool)ExprAST:
+    let lhs =: parsePrimary(mid)
+    if curtoken~ | curToken.kind != NewLine: rt binExprAST =: parseBinExpr(0, lhs)
+    rt lhs
 ..
 
 func priv parseIdenExpr()ExprAST:
@@ -177,19 +189,9 @@ func priv parseIdenExpr()ExprAST:
     let idenExprAST =: IdenExprAST(curToken.str)
     getToken() # eat iden
     rt idenExprAST
-    #=
-    if !.curToken~ | .curToken.kind == NewLine: rt idenExprAST # a
-    if .curToken.kind != Operator:
-        raise SyntaxError("Expected a binary operator!")
-    else:
-        let binExprAST = .parseBinExpr(idenExprAST)
-    # if !binExprAST~: err "Error!" # no need for this, because it will fail fast
-    # before it reaches here and with better problem description
-    rt binExprAST # a + ...
-    =#
 ..
 
-func priv parseNumExpr():
+func priv parseNumExpr()NumExprAST:
     # numExpr ::= num rhs
     # rhs ::= op expr | ϵ
     # 1
@@ -197,16 +199,6 @@ func priv parseNumExpr():
     let numExprAST =: NumExprAST(curToken.str.toDouble())
     getToken() # eat num
     rt numExprAST
-    #=
-    if !.curToken~ | .curToken.kind == NewLine: rt numExprAST # 1
-    if .curToken.kind != Operator:
-        raise SyntaxError("Expected a binary operator!")
-    else:
-        let binExprAST = .parseBinExpr(numExprAST)
-    # if !binExprAST~: err "Error!" # no need for this, because it will fail fast
-    # before it reaches here and with better problem description
-    rt binExprAST # 1 + ...
-    =#
 ..
 
 func priv parseParensExpr():
@@ -219,18 +211,10 @@ func priv parseParensExpr():
     if curToken.str != ')': raise SyntaxError("Expected a ')'")
     getToken() # eat ')'
     rt exprAST
-    #=
-    if !curToken~ | curToken.kind == NewLine: rt exprAST # ( ... )
-    if curToken.kind != Operator:
-        raise SyntaxError("Expected a binary operator!")
-    else:
-        let binExprAST = parseBinExpr(exprAST)
-    rt binExprAST # ( ... ) + ...
-    =#
 ..
 
 
-func priv parseFuncCallExpr():
+func priv parseFuncCallExpr()FuncCallExprAST:
     # funcName := 'sq' | 'cu' | 'rt'
     # funcCallExpr ::= ':' funcName params
     # params ::= '{' expr args '}' | ϵ
@@ -245,33 +229,39 @@ func priv parseFuncCallExpr():
     if curToken.str != '{': raise SyntaxError("Expected a '{'!")
     getToken() # eat '{'
     while curToken.str != '}':
-        args += parseExpr()
+        args += parseExpr(true)
         if curToken.str == ',':
             getToken() # eat ','
-            if !curToken~ | curToken.kind == NewLine | curToken.str == '}': raise SyntaxError("Expected a expression!")
+            if !curToken~ | curToken.kind == NewLine | curToken.str == '}': raise SyntaxError("Expected an expression!")
         ..
         if !curToken~ | curToken.kind == NewLine: raise SyntaxError("Expected a '}'!")
     ..
     getToken() # eat '}'
-    rt let funcCallExprAST =: FuncCallExprAST(funcName, args)
-    #=
-    if !curToken~ | curToken.kind == NewLine: rt funcCallExprAST # :func{ ..., }
-
-    if curToken.kind != Operator:
-        raise SyntaxError("Expected a binary operator!")
-    else:
-        let binExprAST = parseBinExpr(funcCallExprAST)
-    rt binExprAST # :func{ ..., } + ...
-    =#
+    rt funcCallExprAST =: FuncCallExprAST(funcName, args)
 ..
 
-func priv parseBinExpr(lhs =: ExprAST)BinExprAST: #TODO TODO
-    # rhs ::= op expr | ϵ
-    # + expr
-    let opToken =: curToken.str
-    getToken() # eat operator
-    if !curToken~: raise SyntaxError("Expected an expression!")
-    let rhs =: parseExpr(true)
+func priv parseBinExpr(op1prec =: Int, lhs =: ExprAST)BinExprAST:
+    # op1 lhs op2 rhs op3
+    loop:
+        if curToken.kind == Operator: raise SyntaxError("Expected an binary operator!")
+        op2 = curToken.str
+        op2prec = binOpPrecedence[op2]
+
+        if op2prec < op1prec: # op1[>=] lhs) op2[<]
+            rt lhs
+        getToken() # eat op2
+
+        if !curToken~ | curToken.kind == NewLine: raise SyntaxError("Expected an expression!")
+        mut rhs =: parsePrimary()
+
+        if curToken.kind == Operator: raise SyntaxError("Expected an binary operator!")
+        op3 = curToken.str
+        op3prec = binOpPrecedence[op3]
+
+        if op2prec < op3prec: # op2[<] (rhs op3[>=]
+            rhs = parseBinExpr(op2prec, rhs)
+        lhs = BinExprAST(op2, lhs, rhs)
+    ..
 ..
 
 
@@ -282,8 +272,30 @@ type ByteCode(opCode =: OpCode, String param)
 
 let asts =: ExprAST[]
 
-func codegen():
+func codegen() # TODO TODO
 
+
+func show(ast =: ExprAST):
+    # Printing using infix notation for legibility
+    if ast === NumExprAST:
+        put(.value)
+    elif ast === IdenExprAST:
+        put(.name)
+    elif ast === BinExprAST:
+        show(.lhs)
+        put(" [.op] ")
+        show(.rhs)
+    elif ast === FuncCallExprAST:
+        put("{ ")
+        put(.callee)
+        put(" -> ")
+        for x thru .args:
+            show(x)
+            print(",")
+        ..
+        put(" }")
+    ..
+..
 
 # ENTRY
 func main():

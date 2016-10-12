@@ -8,20 +8,40 @@ import java.util.ArrayList;
  * Created by Nypro on 05-Oct-16.
  */
 public class MathParser {
-	String tokens [] = null;
-	int lookahead = 0;
-	public ByteCode[] parse(final String input){
-		ArrayList<ByteCode> bytecode;
-		tokens = MathScanner.scan(input);
-		if(tokens == null || tokens.length == 0){
-			return  null;
-		}
+	private static ArrayList<Token> tokens = null;
+	private static int tokensSize;
+	private static int tokenIndex;
+	private static Token curToken;
 
-		return null;
+	private static void getToken(){
+		if(++tokenIndex < tokens.size()){
+			curToken = tokens.get(tokenIndex);
+		}
+		else curToken = null;
 	}
 
-	private ExprAST parseBinExpr(){ return new ExprAST();}
-	private ExprAST parseCallExpr(){return new ExprAST();}
-	private ExprAST parseNumberExpr(){return new ExprAST();}
-	private ExprAST parseWordExpr(){return new ExprAST();}
+	public static ArrayList<ExprAST> parse(final ArrayList<Token> tokens){
+		MathParser.tokens = tokens;
+		tokensSize = tokens.size();
+		tokenIndex = -1;
+		ArrayList<ExprAST> asts = new ArrayList();
+
+		getToken(); //
+		if(curToken == null || curToken.kind == TokenType.Newline)
+			curToken = tokens ;
+		return asts;
+	}
+
+	private static ExprAST parsePrimary(boolean mid){
+		// idenExpr ::= iden rhs
+		// numExpr ::= num rhs
+		// parensExpr ::= '(' expr ')' rhs
+		// rhs ::= op expr | ϵ
+		// expr ::= idenExpr | numExpr | parensExpr | funcExpr
+		ExprAST exprAST = new ExprAST();
+		switch(curToken.kind){
+
+		}
+		return exprAST;
+	}
 }
