@@ -162,7 +162,7 @@ func priv parsePrimary(mid =: Bool)ExprAST:
     match (curToken.kind):
         case Identfier: exprAST = parseIdenExpr()
         case Number: exprAST = parseNumExpr()
-        case Punctuation:
+        case Punctuator:
             if curToken.str == '(': exprAST = parseParensExpr()
             if curToken.str == ':': exprAST = parseFuncCallExpr()
         case NewLine:
@@ -177,7 +177,8 @@ func priv parsePrimary(mid =: Bool)ExprAST:
 
 func priv parseExpr(mid =: Bool)ExprAST:
     let lhs =: parsePrimary(mid)
-    if curtoken~ | curToken.kind != NewLine: rt binExprAST =: parseBinExpr(0, lhs)
+    if curtoken~ | curToken.kind != Newline:
+        rt parseBinExpr(0, lhs)
     rt lhs
 ..
 
@@ -223,7 +224,7 @@ func priv parseFuncCallExpr()FuncCallExprAST:
     # :func{24} + ...
     getToken() # eat ':'
     if curToken.str not in funcNames: raise SyntaxError("Expected a function name!")
-    let funcName =: curToken
+    let funcName =: curToken.str
     let args =: ExprAST
     getToken() # eat funcName
     if curToken.str != '{': raise SyntaxError("Expected a '{'!")
@@ -241,22 +242,24 @@ func priv parseFuncCallExpr()FuncCallExprAST:
 ..
 
 func priv parseBinExpr(op1prec =: Int, lhs =: ExprAST)BinExprAST:
+    if curToken.str == ",": # for functions
+        rt lhs # step out. "," is not eaten
+    ..
     # op1 lhs op2 rhs op3
     loop:
-        if curToken.kind == Operator: raise SyntaxError("Expected an binary operator!")
-        op2 = curToken.str
-        op2prec = binOpPrecedence[op2]
+        if curToken.kind != Operator: raise SyntaxError("Expected an binary operator!")
+        var op2 = curToken.str
+        var op2prec = binOpPrecedence[op2]
 
         if op2prec < op1prec: # op1[>=] lhs) op2[<]
             rt lhs
         getToken() # eat op2
 
-        if !curToken~ | curToken.kind == NewLine: raise SyntaxError("Expected an expression!")
-        mut rhs =: parsePrimary()
+        var rhs =: parsePrimary(true)
 
-        if curToken.kind == Operator: raise SyntaxError("Expected an binary operator!")
-        op3 = curToken.str
-        op3prec = binOpPrecedence[op3]
+        if !curToken~ | curToken.kind == Operator: raise SyntaxError("Expected an binary operator!")
+        var op3 = curToken.str
+        var op3prec = binOpPrecedence[op3]
 
         if op2prec < op3prec: # op2[<] (rhs op3[>=]
             rhs = parseBinExpr(op2prec, rhs)

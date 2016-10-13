@@ -1,5 +1,8 @@
 package com.tinyspark;
 
+import com.tinyspark.exceptions.NewlineBounce;
+import com.tinyspark.exceptions.SyntaxException;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -35,15 +38,25 @@ public class Main {
     }
 
     public static void cmdManager(){
-        ArrayList<Token> tokens = new ArrayList();
+        ArrayList<Token> tokens;
+        int lineCount = 1;
         Scanner input = new Scanner(System.in);
         while(true){
-            System.out.printf("mathopia >>> ");
-            tokens = MathScanner.scan(input.nextLine());
-            for(Token x : tokens){
-                System.out.println(x.str + " "); ////
+            try {
+                System.out.printf("[" + lineCount + "] mathopia >>> ");
+                tokens = MathScanner.scan(input.nextLine());
+                for (Token x : tokens) {
+                    System.out.println(x.str + " "); //DEBUG//
+                }
+                MathParser.parse(tokens);
+                System.out.println("DONE!"); //DEBUG//
+            }catch(SyntaxException se){
+                System.err.println(se.getMessage());
+            }catch(NewlineBounce nb){
+                // This is not an exception really. I call it Bounce
+                // Don't ask me why. I'm just a weird guy.
             }
-            System.out.println("DONE!"); ////
+            lineCount++;
         }
     }
 }

@@ -10,7 +10,7 @@ public class MathScanner {
 	static private String input;
 	static private int charIndex;
 	static private int inputLength;
-	static final char operators[] = {'=', '-', '+', '*', '/', '^'};
+	static final char operators[] = {'=', '-', '+', '*', '\\', '^'};
 	static final char punctuators[] = {':', '}', '(', ')', ','};
 
 	private static char getChar(){
@@ -24,7 +24,7 @@ public class MathScanner {
 		MathScanner.input = input;
 		inputLength = input.length();
 		charIndex = -1;
-		ArrayList<Token> tokens = new ArrayList();
+		ArrayList<Token> tokens = new ArrayList<>();
 
 		char character = getChar(); // if the null character is returned which means end of input, loop and function are exited
 

@@ -3,7 +3,7 @@ package com.tinyspark;
 /**
  * Created by Nypro on 06-Oct-16.
  */
-public class BinExprAST {
+public class BinExprAST extends ExprAST{
 	public String op;
 	public ExprAST lhs, rhs;
 	public BinExprAST(String op, ExprAST lhs, ExprAST rhs){
